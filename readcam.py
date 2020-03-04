@@ -10,8 +10,9 @@ import base64
 
 # configure the serial connections 
 ser = serial.Serial(
-    port='/dev/ttyUSB1',
+    port='/dev/ttyUSB0',
     baudrate=115200,
+    timeout=1
     #parity=serial.PARITY_ODD,
     #stopbits=serial.STOPBITS_TWO,
     #bytesize=serial.SEVENBITS
@@ -19,8 +20,8 @@ ser = serial.Serial(
 
 ser.isOpen()
 
-maxtemp=35
-mintemp=15
+maxtemp=30
+mintemp=10
 
 #https://stackoverflow.com/questions/52498777/apply-matplotlib-or-custom-colormap-to-opencv-image
 
@@ -68,14 +69,17 @@ class OpenCVApp:
         self.fps=len(self.frameTimes)/self.frameTimesSum
  
     def on_key(self,key):
-        if key != -1:
+        if key != -1 and key != 255:
             if key==27:
                 return False
             if key==114:
                 self.recording= not self.recording
                 if self.recording:
+                   print("Recording on")
                    self.prefix=time.strftime('%H%M%S')
                    self.framecount=0
+                else:
+                   print("Recording off")
 
             else:
                 print("OpenCVApp: The key was",key)
@@ -99,7 +103,9 @@ class OpenCVApp:
                 try:
                     ser.write(('\n').encode())
                     back=ser.readline().strip()
-                    print(back)
+                    if len(back)<50:
+                        back=ser.readline().strip()
+                    #print(back)
                     if len(back)<50:
                         break
                     z=back.split()
@@ -115,8 +121,9 @@ class OpenCVApp:
                     img=np.frombuffer(q,dtype=np.float32)
                     print(len(img))
                     img=img.reshape((24,32))
+                    img=np.fliplr(img)
                     #img=np.random.rand(24,32)
-                    print("Got one")
+                    #print("Got one")
                     img=np.clip(np.round((img-mintemp)/(maxtemp-mintemp) * 255),0,255).astype(np.uint8)
                     img=apply_custom_colormap(img)
                     img=cv2.resize(img,(240,320))
@@ -143,7 +150,7 @@ class OpenCVApp:
 
 if __name__ == '__main__':
     # simple test here.
-    App=OpenCVApp("Test OpenCVApp")
+    App=OpenCVApp("Test OpenCVApp",delay=500)
     App.run()
 
 #   LD_PRELOAD=/usr/lib/arm-linux-gnueabihf/libatomic.so.1 
