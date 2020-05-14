@@ -28,7 +28,7 @@ i2c = busio.I2C(board.SCL, board.SDA, frequency=800000)
 mlx = adafruit_mlx90640.MLX90640(i2c)
 print("MLX addr detected on I2C", [hex(i) for i in mlx.serial_number])
 
-mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ
+mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_4_HZ
 rawFrame=[0]*768
 while True:
     z=input()
@@ -39,7 +39,7 @@ while True:
     try:
         mlx.getFrame(rawFrame)
         encoded=base64.b64encode(np.array(rawFrame).astype(np.float32).tobytes()).decode()
-        print(z,len(encoded),encoded,'END')
+        print(len(encoded),encoded,'END')
         #img=np.array(self.rawFrame).reshape((24,32))
         #print( time.time(), (" ".join(["%3.1f"]*10))%tuple(rawFrame[:10]))
     except ValueError:

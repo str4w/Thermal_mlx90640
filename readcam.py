@@ -8,17 +8,56 @@ import datetime
 import serial
 import base64
 
-# configure the serial connections 
-ser = serial.Serial(
-    port='/dev/ttyUSB0',
-    baudrate=115200,
-    timeout=1
-    #parity=serial.PARITY_ODD,
-    #stopbits=serial.STOPBITS_TWO,
-    #bytesize=serial.SEVENBITS
-)
 
-ser.isOpen()
+class ThermalCameraReader:
+    def __init__(self,port):
+        if port != 'Simulation':
+            # configure the serial connections 
+            self.ser = serial.Serial(
+                port=port,
+                baudrate=115200,
+                timeout=1
+                #parity=serial.PARITY_ODD,
+                #stopbits=serial.STOPBITS_TWO,
+                #bytesize=serial.SEVENBITS
+            )
+
+            self.ser.isOpen()
+        else:
+            self.ticker=0
+            self.ser=None
+    def get_frame(self):
+        if self.ser:
+            self.ser.write(('\n').encode())
+            back=self.ser.readline().strip()
+            if len(back)<50:
+                back=self.ser.readline().strip()
+            #print(back)
+            if len(back)<50:
+                return None
+            z=back.split()
+            if z[-1] != b'END':
+                print(z[-1])
+                return None
+            try:
+                q=base64.b64decode(z[-2])
+            except:
+                print("Failed decode")
+                return None
+            print(len(q))
+            img=np.frombuffer(q,dtype=np.float32)
+            print(len(img))
+            img=img.reshape((24,32))
+            img=np.fliplr(img)
+            return img
+        else:
+            time.sleep(0.3)
+            x,y=np.meshgrid(np.linspace(-1,1,32),np.linspace(-1,1,24))
+            assert(x.shape==(24,32))
+            img=np.cos(x+self.ticker/50.)*np.sin(y+self.ticker/30) *20.+10
+            self.ticker+=1
+            return img
+
 
 maxtemp=30
 mintemp=10
@@ -45,9 +84,9 @@ def apply_custom_colormap(image_gray, cmap=plt.get_cmap('seismic')):
 
 
 class OpenCVApp:
-    def __init__(self,windowTitle="Someone forgot to set a window title",videoDevice=0,delay=3):
+    def __init__(self,windowTitle="Someone forgot to set a window title",port="Simulation",delay=3):
         self.windowTitle=windowTitle
-        self.videoDevice=videoDevice
+        self.camera=ThermalCameraReader(port)
         self.delay=int(delay)
         self.fps=0.
         self.frameTimes=[0.]*10
@@ -101,29 +140,9 @@ class OpenCVApp:
         while(loop):
             while True:
                 try:
-                    ser.write(('\n').encode())
-                    back=ser.readline().strip()
-                    if len(back)<50:
-                        back=ser.readline().strip()
-                    #print(back)
-                    if len(back)<50:
-                        break
-                    z=back.split()
-                    if z[-1] != b'END':
-                        print(z[-1])
-                        break
-                    try:
-                        q=base64.b64decode(z[-2])
-                    except:
-                        print("Failed decode")
-                        break
-                    print(len(q))
-                    img=np.frombuffer(q,dtype=np.float32)
-                    print(len(img))
-                    img=img.reshape((24,32))
-                    img=np.fliplr(img)
                     #img=np.random.rand(24,32)
                     #print("Got one")
+                    img=self.camera.get_frame()
                     img=np.clip(np.round((img-mintemp)/(maxtemp-mintemp) * 255),0,255).astype(np.uint8)
                     img=apply_custom_colormap(img)
                     img=cv2.resize(img,(240,320))
@@ -150,7 +169,7 @@ class OpenCVApp:
 
 if __name__ == '__main__':
     # simple test here.
-    App=OpenCVApp("Test OpenCVApp",delay=500)
+    App=OpenCVApp("Test OpenCVApp",delay=500,port='/dev/ttyUSB0')
     App.run()
 
 #   LD_PRELOAD=/usr/lib/arm-linux-gnueabihf/libatomic.so.1 
