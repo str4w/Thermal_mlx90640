@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import time
-import serial
+import serial,serial.tools.list_ports
 import base64
 from PIL import Image
 
@@ -99,7 +99,7 @@ class CameraThread(QThread):
         self.exiting=False
         self.at_point=(0,0)
         try:
-            self.camera=ThermalCamera('/dev/ttyUSB0xx')
+            self.camera=ThermalCamera('/dev/ttyUSB1')
         except Exception as e:
             print(e)
             print("Initializing Thermal Camera failed")
@@ -198,7 +198,7 @@ class ThermalApp:
         self.app.setPalette(palette)
 
 
-
+#print([comport.device for comport in serial.tools.list_ports.comports()])
 
         self.window = QWidget()
         self.main_layout = QHBoxLayout()
